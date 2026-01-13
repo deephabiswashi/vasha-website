@@ -22,6 +22,7 @@ import { AudioPlayer } from "@/components/chat/AudioPlayer"
 
 // Import ASR service
 import { asrService, ASRResponse } from "@/services/asrService"
+import { chatService } from "@/services/chatService"
 
 interface Message {
   id: string
@@ -92,6 +93,27 @@ export default function Chat() {
     }
     
     checkBackend()
+
+    // Fetch persisted chat history for the logged-in user
+    ;(async () => {
+      try {
+        const token = localStorage.getItem("access_token")
+        if (!token) return
+        const res = await chatService.getChats(50)
+        if (res && res.messages) {
+          const parsed = res.messages.map((m: any, idx: number) => ({
+            id: `h-${idx}-${new Date(m.timestamp).getTime()}`,
+            content: m.text,
+            role: "assistant",
+            timestamp: new Date(m.timestamp),
+          }))
+          // prepend fetched history to responses (most recent first is already reversed in API)
+          setResponses((prev) => [...parsed.map((p: any) => ({ id: p.id, text: p.content, timestamp: p.timestamp, language: "unknown", audioUrl: undefined })), ...prev])
+        }
+      } catch (e) {
+        console.warn("Failed to load chat history:", e)
+      }
+    })()
   }, [])
 
   const scrollToBottom = () => {
@@ -267,6 +289,17 @@ export default function Chat() {
       }
       
       setResponses(prev => [newResponse, ...prev])
+
+      // Persist assistant response to backend (if logged in)
+      ;(async () => {
+        try {
+          const token = localStorage.getItem("access_token")
+          if (!token) return
+          await chatService.saveChat(newResponse.text)
+        } catch (e) {
+          console.warn("Failed to persist chat:", e)
+        }
+      })()
     }, 1500)
   }
 

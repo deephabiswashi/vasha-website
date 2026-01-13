@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { LanguageSelector, languages } from "@/components/chat/LanguageSelector"
 import { mtService } from "@/services/mtService"
 import { AudioPlayer } from "@/components/chat/AudioPlayer"
+import { chatService } from "@/services/chatService"
 
 export default function MT() {
   const location = useLocation()
@@ -39,6 +40,18 @@ export default function MT() {
     try {
       const res = await mtService.translate(transcription, srcLang, tgtLang, model)
       setResult(res.translation)
+
+      // Persist translation to backend (if logged in)
+      ;(async () => {
+        try {
+          const token = localStorage.getItem("access_token")
+          if (!token) return
+          // Save only the translated text
+          await chatService.saveChat(res.translation)
+        } catch (e) {
+          console.warn("Failed to persist translation:", e)
+        }
+      })()
     } catch (e: any) {
       setError(e?.message || 'Translation failed')
     } finally {

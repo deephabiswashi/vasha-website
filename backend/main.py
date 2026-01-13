@@ -36,6 +36,7 @@ app.add_middleware(
 client = MongoClient("mongodb://localhost:27017/")
 db = client["vasha"]
 users = db["users"]
+chats = db["chats"]
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -434,6 +435,69 @@ async def get_me(request: Request):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"username": user["username"], "email": user["email"], "phone": user["phone"]}
+
+
+def _get_username_from_request(request: Request):
+    auth = request.headers.get("authorization")
+    if not auth or not auth.startswith("Bearer "):
+        return None
+    token = auth.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        return username
+    except JWTError:
+        return None
+
+
+@app.post("/chats")
+async def save_chat(request: Request, payload: dict):
+    """Save a chat message (text only) for the authenticated user."""
+    username = _get_username_from_request(request)
+    if not username:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    text = payload.get("text")
+    if not text or not isinstance(text, str):
+        raise HTTPException(status_code=400, detail="'text' is required and must be a string")
+
+    user = get_user(username)
+    user_id = str(user["_id"]) if user else None
+
+    doc = {
+        "user_id": user_id,
+        "username": username,
+        "text": text,
+        "timestamp": datetime.utcnow()
+    }
+
+    try:
+        chats.insert_one(doc)
+        return {"success": True, "message": "Chat saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save chat: {str(e)}")
+
+
+@app.get("/chats")
+async def get_chats(request: Request, limit: int = 50):
+    """Retrieve recent chat messages for the authenticated user."""
+    username = _get_username_from_request(request)
+    if not username:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        cursor = chats.find({"username": username}).sort("timestamp", -1).limit(int(limit))
+        items = []
+        for doc in cursor:
+            items.append({
+                "text": doc.get("text"),
+                "timestamp": doc.get("timestamp")
+            })
+
+        # Return messages oldest->newest
+        return {"success": True, "messages": list(reversed(items))}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch chats: {str(e)}")
 
 # SMS OTP functionality for user verification
 import random
