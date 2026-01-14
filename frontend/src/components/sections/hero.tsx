@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { ArrowRight, Sparkles, Zap } from "lucide-react"
+import { ArrowRight, Sparkles, Zap, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import LanguageSupportTable from "@/components/sections/LanguageSupportTable"
 import ModelDetailsModal from "@/components/sections/ModelDetailsModal"
@@ -9,6 +9,9 @@ export function Hero() {
   const [hoverLeft, setHoverLeft] = useState(false)
   const [hoverRight, setHoverRight] = useState(false)
   const [modalOpen, setModalOpen] = useState<"asr" | "mt" | "tts" | null>(null)
+  const [evalImages, setEvalImages] = useState<string[] | null>(null)
+  const [evalIndex, setEvalIndex] = useState<number>(0)
+  const [zoomed, setZoomed] = useState<boolean>(false)
 
   // Move images down to align with "Experience Vasha AI"
   const imgLeftStyle: React.CSSProperties = {
@@ -156,6 +159,15 @@ export function Hero() {
                 <Button size="sm" className="mt-2 rounded-full px-5 py-2 font-semibold tracking-wide shadow transition-all hover:bg-primary/90" onClick={() => setModalOpen("asr")}>
                   LEARN MORE
                 </Button>
+                <div className="mt-3">
+                  <button
+                    className="inline-flex items-center space-x-3 rounded-full px-4 py-2 bg-muted/80 hover:bg-muted transition"
+                    onClick={() => { setEvalImages(["/asrcombined.png"]); setEvalIndex(0); setZoomed(false) }}
+                  >
+                    <img src="/asrcombined.png" alt="ASR eval" className="w-32 h-32 object-contain rounded" />
+                    <span className="text-sm font-medium">Evaluation Plots</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -189,6 +201,15 @@ export function Hero() {
                 <Button size="sm" className="mt-2 rounded-full px-5 py-2 font-semibold tracking-wide shadow transition-all hover:bg-primary/90" onClick={() => setModalOpen("mt")}>
                   LEARN MORE
                 </Button>
+                <div className="mt-3">
+                  <button
+                    className="inline-flex items-center space-x-3 rounded-full px-4 py-2 bg-muted/80 hover:bg-muted transition"
+                    onClick={() => { setEvalImages(["/mt_combined.png"]); setEvalIndex(0); setZoomed(false) }}
+                  >
+                    <img src="/mt_combined.png" alt="MT eval" className="w-32 h-32 object-contain rounded" />
+                    <span className="text-sm font-medium">Evaluation Plots</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -222,6 +243,15 @@ export function Hero() {
                 <Button size="sm" className="mt-2 rounded-full px-5 py-2 font-semibold tracking-wide shadow transition-all hover:bg-primary/90" onClick={() => setModalOpen("tts")}>
                   LEARN MORE
                 </Button>
+                <div className="mt-3">
+                  <button
+                    className="inline-flex items-center space-x-3 rounded-full px-4 py-2 bg-muted/80 hover:bg-muted transition"
+                    onClick={() => { setEvalImages(["/tts_mos.png","/tts_rtf.png"]); setEvalIndex(0); setZoomed(false) }}
+                  >
+                    <img src="/tts_mos.png" alt="TTS MOS" className="w-32 h-32 object-contain rounded" />
+                    <span className="text-sm font-medium">Evaluation Plots</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -240,6 +270,91 @@ export function Hero() {
           open={true}
           onOpenChange={(open) => !open && setModalOpen(null)}
         />
+      )}
+
+      {/* Evaluation plots modal/lightbox */}
+      {evalImages && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setEvalImages(null)}>
+          <div className="bg-card p-4 rounded-lg max-w-5xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {evalImages.length > 1 && (
+                  <>
+                    <button
+                      className="p-2 rounded hover:bg-muted/60"
+                      onClick={() => setEvalIndex((i) => Math.max(0, i - 1))}
+                      disabled={evalIndex === 0}
+                    >
+                      <ChevronLeft />
+                    </button>
+                    <button
+                      className="p-2 rounded hover:bg-muted/60"
+                      onClick={() => setEvalIndex((i) => Math.min(evalImages.length - 1, i + 1))}
+                      disabled={evalIndex === evalImages.length - 1}
+                    >
+                      <ChevronRight />
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="p-2 rounded hover:bg-muted/60" onClick={() => setZoomed((z) => !z)}>
+                  {zoomed ? <ZoomOut /> : <ZoomIn />}
+                </button>
+                <button className="px-3 py-1 rounded bg-muted/80 hover:bg-muted" onClick={() => setEvalImages(null)}>Close</button>
+              </div>
+            </div>
+
+            <div className="relative flex items-center justify-center mt-4 min-h-[40vh]">
+              {evalImages.length > 1 && (
+                <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                  <button
+                    className="p-2 rounded-full bg-muted/80 hover:bg-muted"
+                    onClick={() => setEvalIndex((i) => Math.max(0, i - 1))}
+                    disabled={evalIndex === 0}
+                  >
+                    <ChevronLeft />
+                  </button>
+                </div>
+              )}
+
+              <div className="overflow-hidden flex-1 flex items-center justify-center">
+                <img
+                  src={evalImages[evalIndex]}
+                  alt={`Evaluation ${evalIndex + 1}`}
+                  onClick={() => setZoomed((z) => !z)}
+                  className={`mx-auto transition-transform duration-200 rounded ${zoomed ? 'scale-125 cursor-zoom-out' : 'scale-100 cursor-zoom-in'} max-h-[75vh] object-contain`}
+                />
+              </div>
+
+              {evalImages.length > 1 && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <button
+                    className="p-2 rounded-full bg-muted/80 hover:bg-muted"
+                    onClick={() => setEvalIndex((i) => Math.min(evalImages.length - 1, i + 1))}
+                    disabled={evalIndex === evalImages.length - 1}
+                  >
+                    <ChevronRight />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 text-center text-sm text-muted-foreground">
+              {(() => {
+                const name = evalImages[evalIndex].split('/').pop()?.toLowerCase() || ''
+                const captionMap: Record<string, string> = {
+                  'asrcombined.png': 'ASR combined evaluation metrics (WER, CER, etc.)',
+                  'mtcombined.png': 'MT combined evaluation (BLEU / chrF scores)',
+                  'mt_combined.png': 'MT combined evaluation (BLEU / chrF scores)',
+                  'tts_mos.png': 'TTS MOS (mean opinion score) results',
+                  'tts_rtf.png': 'TTS real-time factor (RTF) measurements'
+                }
+                return captionMap[name] ?? 'Evaluation plot'
+              })()}
+            </div>
+          </div>
+        </div>
       )}
     </section>
   )
